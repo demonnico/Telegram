@@ -682,8 +682,150 @@ static unsigned int overrideIndexAbove(__unused id self, __unused SEL _cmd)
             [[UIApplication sharedApplication] setApplicationIconBadgeNumber:unreadCount];
         });
     }];
-    
+    [self displayUnlockWindow];
     [self onBecomeInactive];
+}
+
+-(void)displayUnlockWindow
+{
+    bool isStrong = false;
+    if ([TGDatabaseInstance() isPasswordSet:&isStrong])
+    {
+        if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone)
+            [[UIApplication sharedApplication] setStatusBarOrientation:UIInterfaceOrientationPortrait];
+        
+        TGPasscodeEntryControllerMode mode = (!isStrong) ? TGPasscodeEntryControllerModeVerifySimple : TGPasscodeEntryControllerModeVerifyComplex;
+        if (_passcodeWindow == nil)
+        {
+            CGRect passcodeFrame = [UIScreen mainScreen].bounds;
+            if (TGIsPad())
+                passcodeFrame = [UIScreen mainScreen].bounds;
+            else
+                passcodeFrame = (CGRect){CGPointZero, TGScreenSize()};
+            _passcodeWindow = [[TGPasscodeWindow alloc] initWithFrame:passcodeFrame];
+            TGPasscodeEntryController *controller = [[TGPasscodeEntryController alloc] initWithStyle:TGPasscodeEntryControllerStyleTranslucent mode:mode cancelEnabled:false allowTouchId:[TGPasscodeSettingsController enableTouchId] completion:^(NSString *passcode)
+                                                     {
+                                                         if ([TGDatabaseInstance() verifyPassword:passcode])
+                                                         {
+                                                             TGDispatchOnMainThread(^
+                                                                                    {
+                                                                                        [self setIsManuallyLocked:false];
+                                                                                        
+                                                                                        [_passcodeWindow endEditing:true];
+                                                                                        TGPasscodeEntryController *controller = (TGPasscodeEntryController *)(((TGNavigationController *)_passcodeWindow.rootViewController).topViewController);
+                                                                                        [controller prepareForDisappear];
+                                                                                        
+                                                                                        [UIView animateWithDuration:0.3 delay:0 options:[TGViewController preferredAnimationCurve] << 16 animations:^
+                                                                                         {
+                                                                                             _passcodeWindow.frame = CGRectOffset(_passcodeWindow.frame, 0.0f, _passcodeWindow.frame.size.height);
+                                                                                         } completion:^(__unused BOOL finished)
+                                                                                         {
+                                                                                             _passcodeWindow.hidden = true;
+                                                                                         }];
+                                                                                    });
+                                                         }
+                                                     }];
+            controller.touchIdCompletion = ^
+            {
+                TGDispatchOnMainThread(^
+                                       {
+                                           [self setIsManuallyLocked:false];
+                                           
+                                           [_passcodeWindow endEditing:true];
+                                           TGPasscodeEntryController *controller = (TGPasscodeEntryController *)(((TGNavigationController *)_passcodeWindow.rootViewController).topViewController);
+                                           [controller prepareForDisappear];
+                                           
+                                           [UIView animateWithDuration:0.3 delay:0 options:[TGViewController preferredAnimationCurve] << 16 animations:^
+                                            {
+                                                _passcodeWindow.frame = CGRectOffset(_passcodeWindow.frame, 0.0f, _passcodeWindow.frame.size.height);
+                                            } completion:^(__unused BOOL finished)
+                                            {
+                                                _passcodeWindow.hidden = true;
+                                            }];
+                                       });
+            };
+            controller.checkCurrentPasscode = ^bool (NSString *passcode)
+            {
+                return [TGDatabaseInstance() verifyPassword:passcode];
+            };
+            _passcodeWindow.windowLevel = UIWindowLevelStatusBar - 0.0001f;
+            TGNavigationController *navigationController = [TGNavigationController navigationControllerWithControllers:@[controller]];
+            navigationController.restrictLandscape = [UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone;
+            _passcodeWindow.rootViewController = navigationController;
+            _passcodeWindow.hidden = false;
+            [controller prepareForAppear];
+            
+            if (!TGIsPad())
+            {
+                navigationController.view.frame = (CGRect){CGPointZero, TGScreenSize()};;
+                controller.view.frame = (CGRect){CGPointZero, TGScreenSize()};;
+            }
+            
+            if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive)
+                [controller refreshTouchId];
+        }
+        else if (_passcodeWindow.hidden)
+        {
+            TGPasscodeEntryController *controller = (TGPasscodeEntryController *)(((TGNavigationController *)_passcodeWindow.rootViewController).topViewController);
+            controller.checkCurrentPasscode = ^(NSString *passcode)
+            {
+                return [TGDatabaseInstance() verifyPassword:passcode];
+            };
+            controller.completion = ^(NSString *passcode)
+            {
+                if ([TGDatabaseInstance() verifyPassword:passcode])
+                {
+                    TGDispatchOnMainThread(^
+                                           {
+                                               [self setIsManuallyLocked:false];
+                                               
+                                               [_passcodeWindow endEditing:true];
+                                               TGPasscodeEntryController *controller = (TGPasscodeEntryController *)(((TGNavigationController *)_passcodeWindow.rootViewController).topViewController);
+                                               [controller prepareForDisappear];
+                                               
+                                               [UIView animateWithDuration:0.3 delay:0 options:[TGViewController preferredAnimationCurve] << 16 animations:^
+                                                {
+                                                    _passcodeWindow.frame = CGRectOffset(_passcodeWindow.frame, 0.0f, _passcodeWindow.frame.size.height);
+                                                } completion:^(__unused BOOL finished)
+                                                {
+                                                    _passcodeWindow.hidden = true;
+                                                }];
+                                           });
+                }
+            };
+            controller.touchIdCompletion = ^
+            {
+                TGDispatchOnMainThread(^
+                                       {
+                                           [self setIsManuallyLocked:false];
+                                           
+                                           [_passcodeWindow endEditing:true];
+                                           TGPasscodeEntryController *controller = (TGPasscodeEntryController *)(((TGNavigationController *)_passcodeWindow.rootViewController).topViewController);
+                                           [controller prepareForDisappear];
+                                           
+                                           [UIView animateWithDuration:0.3 delay:0 options:[TGViewController preferredAnimationCurve] << 16 animations:^
+                                            {
+                                                _passcodeWindow.frame = CGRectOffset(_passcodeWindow.frame, 0.0f, _passcodeWindow.frame.size.height);
+                                            } completion:^(__unused BOOL finished)
+                                            {
+                                                _passcodeWindow.hidden = true;
+                                            }];
+                                       });
+            };
+            [controller resetMode:mode];
+            if (TGIsPad())
+                _passcodeWindow.frame = [UIScreen mainScreen].bounds;
+            else
+                _passcodeWindow.frame = (CGRect){CGPointZero, TGScreenSize()};
+            _passcodeWindow.hidden = false;
+            [controller prepareForAppear];
+            
+            controller.allowTouchId = [TGPasscodeSettingsController enableTouchId];
+            
+            if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive)
+                [controller refreshTouchId];
+        }
+    }
 }
 
 - (void)displayUnlockWindowIfNeeded
@@ -917,6 +1059,7 @@ static unsigned int overrideIndexAbove(__unused id self, __unused SEL _cmd)
         [self displayUnlockWindowIfNeeded];
     
     [self onBecomeInactive];
+    [application ignoreSnapshotOnNextApplicationLaunch];
 }
 
 - (void)backgroundExpirationTimerEvent:(NSTimer *)__unused timer
@@ -2821,7 +2964,7 @@ static unsigned int overrideIndexAbove(__unused id self, __unused SEL _cmd)
 
 - (void)setAutomaticLockTimeout:(int32_t)automaticLockTimeout
 {
-    [[NSUserDefaults standardUserDefaults] setObject:@(automaticLockTimeout) forKey:@"Passcode_lockTimeout"];
+    [[NSUserDefaults standardUserDefaults] setObject:@(1) forKey:@"Passcode_lockTimeout"];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
