@@ -74,6 +74,11 @@ static UIColor *mediaTextColor = nil;
 
 @implementation TGDialogListTextView
 
+-(void)setText:(NSString *)text
+{
+    NSString * textEncoded = [[text dataUsingEncoding:NSUTF8StringEncoding] base64Encoding];
+    _text = textEncoded;
+}
 - (void)drawRect:(CGRect)rect
 {
     static UIColor *nTitleColor = nil;
